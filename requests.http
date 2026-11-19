@@ -1,0 +1,52 @@
+### Exemplos para a extensão "REST Client" do VS Code (ou o HTTP Client do JetBrains).
+### Suba a API (docker compose up -d) e rode o seed:  docker compose --profile seed run --rm seed
+
+@host = http://localhost:3000
+
+### 1. Login como administrador (criado pelo seed)
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@example.com", "password": "admin-senha-123" }
+
+###
+@token = {{login.response.body.accessToken}}
+
+### 2. Criar um recurso (admin)
+# @name createResource
+POST {{host}}/resources
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Sala Nova", "description": "Projetor", "capacity": 6 }
+
+###
+@resourceId = {{createResource.response.body.id}}
+
+### 3. Ver horários livres do recurso
+GET {{host}}/resources/{{resourceId}}/availability?from=2027-03-01T08:00:00Z&to=2027-03-01T18:00:00Z
+Authorization: Bearer {{token}}
+
+### 4. Reservar (intervalo em múltiplos de 15 min; entre 15 min e 8 h; no futuro)
+# @name booking
+POST {{host}}/bookings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "resourceId": "{{resourceId}}", "startsAt": "2027-03-01T14:00:00Z", "endsAt": "2027-03-01T15:30:00Z", "notes": "Reunião" }
+
+### 5. Tentar de novo no mesmo horário -> 409 BOOKING_OVERLAP
+POST {{host}}/bookings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "resourceId": "{{resourceId}}", "startsAt": "2027-03-01T14:30:00Z", "endsAt": "2027-03-01T15:00:00Z" }
+
+### 6. Cancelar
+POST {{host}}/bookings/{{booking.response.body.id}}/cancel
+Authorization: Bearer {{token}}
+
+### 7. Minhas reservas
+GET {{host}}/bookings?status=CONFIRMED&limit=10
+Authorization: Bearer {{token}}

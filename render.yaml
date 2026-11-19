@@ -1,0 +1,30 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec): cria o banco e a API a partir deste repositório.
+# Veja docs/DEPLOY.md. Confira os planos e limites vigentes no site do Render antes de usar.
+databases:
+  - name: booking-db
+    databaseName: booking
+    user: booking
+    plan: free
+
+services:
+  - type: web
+    name: booking-api
+    runtime: docker
+    plan: free
+    autoDeploy: true # cada push em main publica uma nova versão (deploy contínuo)
+    healthCheckPath: /health/ready
+    # Aplica as migrations e só então sobe a API.
+    dockerCommand: sh -c "npx prisma migrate deploy && node dist/main"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: booking-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: LOG_LEVEL
+        value: info

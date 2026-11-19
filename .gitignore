@@ -1,0 +1,20 @@
+# dependências e build
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# cliente Prisma gerado (rode `npm run db:generate`)
+src/generated/
+
+# ambiente local
+.env
+.env.*
+!.env.example
+
+# sistema e editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

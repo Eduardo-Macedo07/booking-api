@@ -1,0 +1,86 @@
+# Ambiente completo: API + PostgreSQL + Prometheus + Grafana.
+#   docker compose up --build
+# API:        http://localhost:3000   (docs em /docs)
+# Prometheus: http://localhost:9090
+# Grafana:    http://localhost:3001   (admin / admin) -> dashboard "Booking API"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: booking
+      POSTGRES_PASSWORD: booking
+      POSTGRES_DB: booking
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U booking -d booking']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Roda as migrations uma vez e termina. A API só sobe depois que ele conclui com sucesso.
+  migrate:
+    build: .
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    environment:
+      DATABASE_URL: postgresql://booking:booking@postgres:5432/booking
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://booking:booking@postgres:5432/booking
+      # Segredo de DESENVOLVIMENTO. Em produção, use um valor próprio e secreto.
+      JWT_SECRET: compose-dev-only-secret-change-me-in-production
+      LOG_LEVEL: info
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Cria o primeiro admin e recursos de exemplo:  docker compose --profile seed run --rm seed
+  seed:
+    build: .
+    profiles: ['seed']
+    command: ['node', 'dist/seed.js']
+    environment:
+      DATABASE_URL: postgresql://booking:booking@postgres:5432/booking
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: admin-senha-123
+      SEED_DEMO: 'true'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    ports:
+      - '3001:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
