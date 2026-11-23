@@ -64,7 +64,7 @@ jobs:
     needs: quality
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Sobe a stack completa (API, banco, migrations, Prometheus, Grafana)
         run: docker compose up -d --build --wait api prometheus grafana
       - name: Teste de fumaça
@@ -95,7 +95,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
